@@ -34,7 +34,7 @@ def create_main_screen():
     button_bg_color = WHITE  # But we will set alpha to make it transparent
     button_text_color = (0, 0, 0)  # Black text
 
-    button_texts = ['Play', 'Multiplayer', 'Leaderboard', 'Settings', 'Exit']
+    button_texts = ['Play', 'Multiplayer Menu', 'Leaderboard', 'Settings', 'Exit']
     num_buttons = len(button_texts)
     total_height = num_buttons * button_height + (num_buttons - 1) * button_spacing
     start_y = (HEIGHT - total_height) / 2 + 100  # Offset 100 pixels down

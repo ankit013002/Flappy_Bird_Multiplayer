@@ -11,8 +11,6 @@ from Utilities import *
 from Multiplayer import *
 from GameLogic import *
 
-
-
 def game_over_screen():
     move_background()
     game_over_surface = font.render(f'Game Over. Your Score: {int(score)}', True, WHITE)
@@ -24,8 +22,8 @@ def game_over_screen():
     SCREEN.blit(prompt_surface, prompt_rect)
 
 def main_game_loop():
-    global game_state, player_name, pipe_list, num_adversaries, score, input_box, connection_code
-    
+    global game_state, player_name, pipe_list, num_adversaries, score
+    global input_box, connection_code, game_active, bird_movement
     while True:
         if game_state == 'start':
             for event in pygame.event.get():
@@ -53,8 +51,12 @@ def main_game_loop():
                                         # Reset input box text
                                         input_box.text = ''
                                         input_box.txt_surface = input_box.font.render(input_box.text, True, input_box.color)
-                                    case 'Multiplayer':
-                                        game_state = 'multiplayer'
+                                    case 'Multiplayer Menu':
+                                        game_state = 'multiplayer menu'
+                                    case 'Host':
+                                        game_state = 'Host'
+                                    case 'Join':
+                                        game_state = 'Join'
                                     case 'Leaderboard':
                                         game_state = 'leaderboard'
                                     case 'Settings':
@@ -120,26 +122,124 @@ def main_game_loop():
                     game_state = 'start'
             leaderboard_screen()
             
-        elif game_state == "multiplayer":
+        elif game_state == 'multiplayer menu':
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos = event.pos
+                    for btn in multiplayer_buttons:
+                        if btn.is_hovered(mouse_pos):
+                            if btn.text == 'Host':
+                                # Go to Host screen
+                                game_state = 'host'
+                            elif btn.text == 'Join':
+                                # Go to Join screen
+                                game_state = 'join'
+
+            multiplayer_menu_screen()
+
+        elif game_state == 'host':
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos = event.pos
+                    for btn in host_buttons:
+                        if btn.is_hovered(mouse_pos):
+                            if btn.text == "Back":
+                                # Clear the host_code if you want to reset each time you leave:
+                                Config.host_code = 0
+                                game_state = 'multiplayer menu'
+                            
+                            elif btn.text == "Start":
+                                # In real networking code, you’d first ensure that
+                                # players are actually connected, etc.
+                                # If all set, start the game:
+                                game_state = 'play_multiplayer'
+            host_screen()
+            
+        elif game_state == 'join':
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                # Let the user type the code
                 connection_code_input_box.handle_event(event)
+                
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = event.pos
-                    # Check difficulty buttons
-                    # Check confirm button
-                    if connection_button.is_hovered(mouse_pos):
-                        # Validate and set the number of adversaries
-                        try:
-                            connection_code = int(connection_code_input_box.text.strip())
-                        except ValueError:
-                            connection_code = 0
-                        game_state = 'start'
+                    for btn in join_buttons:
+                        if btn.is_hovered(mouse_pos):
+                            if btn.text == 'Connect':
+                                # Attempt to connect by comparing typed code to host_code
+                                try:
+                                    typed_code = int(connection_code_input_box.text.strip())
+                                except ValueError:
+                                    typed_code = 0
+                                if typed_code == host_code:
+                                    # success -> in real code, you’d attempt to connect via socket
+                                    # For now, we can just transition to 'play'
+                                    game_state = 'play'
+                                else:
+                                    # invalid code -> maybe display an error or keep them here
+                                    print("Invalid code entered!")
+                                
+                                # Clear the input field after connecting attempt
+                                connection_code_input_box.text = ""
+                                connection_code_input_box.txt_surface = connection_code_input_box.font.render("", True, WHITE)
+
+                            elif btn.text == 'Back':
+                                game_state = 'multiplayer menu'
+
             connection_code_input_box.update()
-            multiplayer_screen(connection_code_input_box, connection_button)
-            
+            join_screen(connection_code_input_box)
+
+        elif game_state == 'play_multiplayer':
+            # 1) Gather events
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                
+                # Handle inputs for your multiplayer mode (e.g. spacebar flaps)
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and game_active:
+                    bird_movement = -6
+
+                # Possibly handle pipe spawning if this user is the host,
+                # or just ignore if the host is someone else.
+
+            # 2) Update your game logic
+            move_background()
+
+            if game_active:
+                bird_movement += GRAVITY
+                bird_rect.centery += bird_movement
+
+                SCREEN.blit(bird_image, bird_rect)
+
+                pipe_list = move_pipes(pipe_list)
+                draw_pipes(pipe_list)
+
+                game_active = check_collision(pipe_list)
+
+                if not game_active:
+                    game_state = 'game_over'
+                    update_leader_board(player_name, score)
+
+                score += 0.01
+                display_score(score)
+            else:
+                game_state = 'game_over'
+
+            # 3) Update the screen and clock
+            pygame.display.update()
+            clock.tick(60)
+
+        
         elif game_state == 'settings':
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -193,6 +293,11 @@ def main():
         difficulty_buttons.append(btn)
     
     create_main_screen()
+    
+    # Create multiplayer menu
+    create_multiplayer_menu()
+    create_host_screen()
+    create_join_screen()
     
     main_game_loop()
 

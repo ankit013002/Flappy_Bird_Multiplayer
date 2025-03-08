@@ -1,4 +1,6 @@
 import pygame
+import random
+
 
 pygame.init()
 
@@ -8,6 +10,7 @@ HEIGHT = 800
 GRAVITY = 0.3
 game_state = 'start'
 
+host_code = 0
 
 
 WHITE = (255, 255, 255)
