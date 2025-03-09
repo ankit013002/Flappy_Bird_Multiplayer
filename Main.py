@@ -1,7 +1,3 @@
-import pygame
-import sys
-from Adversary import AdversaryBird  # Import the AdversaryBird class
-from Config import *
 from Button import *
 from MainScreen import *
 from InputBox import *
@@ -11,6 +7,7 @@ from Utilities import *
 from Multiplayer import *
 from GameLogic import *
 from GameOver import *
+from PlayMultiplayer import *
 
 
 def main_game_loop():
@@ -33,6 +30,7 @@ def main_game_loop():
 
     while True:
         if game_state == 'start':
+            print("At Start")
             score = 0
             game_state, game_active, player_name = start_screen(
                 input_box, pipe_list)
@@ -53,52 +51,16 @@ def main_game_loop():
 
         elif game_state == 'host':
             game_state, host_code = host_logic(host_code)
-            print(host_code)
 
         elif game_state == 'join':
             game_state = join_logic(connection_code_input_box, host_code)
 
         elif game_state == 'play_multiplayer':
-            # 1) Gather events
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+            game_state = play_multiplayer_logic()
+            if game_state == 'game_over':
+                update_leader_board(player_name, score)
 
-                # Handle inputs for your multiplayer mode (e.g. spacebar flaps)
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and game_active:
-                    bird_movement = -6
-
-                # Possibly handle pipe spawning if this user is the host,
-                # or just ignore if the host is someone else.
-
-            # 2) Update your game logic
-            move_background()
-
-            if game_active:
-                bird_movement += GRAVITY
-                bird_rect.centery += bird_movement
-
-                SCREEN.blit(bird_image, bird_rect)
-
-                pipe_list = move_pipes(pipe_list)
-                draw_pipes(pipe_list)
-
-                game_active = check_collision(pipe_list)
-
-                if not game_active:
-                    game_state = 'game_over'
-                    update_leader_board(player_name, score)
-
-                score += 0.01
-                display_score(score)
-            else:
-                game_state = 'game_over'
-
-            # 3) Update the screen and clock
-            pygame.display.update()
-            clock.tick(60)
-
+            display_score(score)
         elif game_state == 'settings':
             game_state = settings_logic(confirm_button)
 
@@ -112,7 +74,6 @@ def main():
 
     create_main_screen()
 
-    # Create multiplayer menu
     create_multiplayer_menu()
     create_host_screen()
     create_join_screen()
