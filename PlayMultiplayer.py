@@ -1,29 +1,37 @@
+from Network import Multiplayer
 from Utilities import *
 from GameLogic import *
 
+multiplayer = None  # Will be set when game starts
+
 
 def play_multiplayer_logic():
+    global multiplayer
     game_state = 'play_multiplayer'
-    game_active = False
-    # 1) Gather events
+    game_active = True
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
 
-        # Handle inputs for your multiplayer mode (e.g. spacebar flaps)
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and game_active:
             bird_movement = -6
 
-        # Possibly handle pipe spawning if this user is the host,
-        # or just ignore if the host is someone else.
-
-    # 2) Update your game logic
     move_background()
 
     if game_active:
         bird_movement += GRAVITY
         bird_rect.centery += bird_movement
+
+        # Send player position to server
+        if multiplayer:
+            multiplayer.client_connect()
+
+        # Draw all players
+        for player_id, pos in multiplayer.players.items():
+            # Red birds for other players
+            pygame.draw.rect(SCREEN, (255, 0, 0), (pos[0], pos[1], 40, 40))
 
         SCREEN.blit(bird_image, bird_rect)
 
@@ -32,12 +40,7 @@ def play_multiplayer_logic():
 
         game_active = check_collision(pipe_list)
 
-        score += 0.01
-    else:
-        game_state = 'game_over'
-
-    # 3) Update the screen and clock
     pygame.display.update()
     clock.tick(60)
 
-    return game_state, score
+    return game_state

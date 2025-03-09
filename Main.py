@@ -1,3 +1,4 @@
+from Network import Multiplayer
 from Button import *
 from MainScreen import *
 from InputBox import *
@@ -30,7 +31,6 @@ def main_game_loop():
 
     while True:
         if game_state == 'start':
-            print("At Start")
             score = 0
             game_state, game_active, player_name = start_screen(
                 input_box, pipe_list)
@@ -69,14 +69,22 @@ def main_game_loop():
 
 
 def main():
+    global multiplayer
 
     pygame.init()
-
     create_main_screen()
-
     create_multiplayer_menu()
     create_host_screen()
     create_join_screen()
+
+    is_host = input(
+        "Do you want to host a game? (y/n): ").strip().lower() == "y"
+    host_ip = None
+
+    if not is_host:
+        host_ip = input("Enter the host's IP: ").strip()
+
+    multiplayer = Multiplayer(is_host, host_ip)
 
     main_game_loop()
 
