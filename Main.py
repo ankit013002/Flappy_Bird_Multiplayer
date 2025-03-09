@@ -17,6 +17,7 @@ def main_game_loop():
     score = 0
     pipe_list = []
     game_state = 'start'
+    multiplayer = None  # Initialize multiplayer to None
 
     input_box = InputBox(x=((WIDTH - 300) / 2), y=80, w=300, h=40, font=font)
     confirm_button = Button('Confirm', (WIDTH / 2 - 125, HEIGHT / 2 + 100),
@@ -46,14 +47,14 @@ def main_game_loop():
             game_state = host_logic()
 
         elif game_state == 'join':
-            game_state = join_logic()
+            game_state, multiplayer = join_logic()  # Fix: Capture multiplayer
 
         elif game_state == 'play_multiplayer':
             if multiplayer is None:
                 print("[ERROR] Multiplayer instance is not set in main loop!")
                 game_state = 'multiplayer menu'  # Redirect back to menu instead of crashing
             else:
-                game_state = play_multiplayer_logic()
+                game_state, multiplayer = play_multiplayer_logic(multiplayer)
                 if game_state == 'game_over':
                     update_leader_board(player_name, score)
                 display_score(score)

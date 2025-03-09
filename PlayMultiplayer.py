@@ -2,11 +2,9 @@ from Network import Multiplayer
 from Utilities import *
 from GameLogic import *
 
-multiplayer = None  # Will be set when game starts
 
-
-def play_multiplayer_logic():
-    global multiplayer, bird_movement  # Ensure multiplayer is global
+def play_multiplayer_logic(multiplayer):
+    global bird_movement  # Ensure multiplayer is global
 
     game_state = 'play_multiplayer'
     game_active = True
@@ -49,4 +47,4 @@ def play_multiplayer_logic():
     pygame.display.update()
     clock.tick(60)
 
-    return game_state
+    return game_state, multiplayer

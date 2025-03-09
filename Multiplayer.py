@@ -133,16 +133,17 @@ def join_logic():
             for btn in join_buttons:
                 if btn.is_hovered(mouse_pos):
                     if btn.text == "Connect":
-                        multiplayer = Multiplayer(
-                            is_host=False, host_ip=ip_input_box.text.strip()
-                        )  # Assign multiplayer instance
+                        if multiplayer is None:  # Ensure we create multiplayer instance once
+                            multiplayer = Multiplayer(
+                                is_host=False, host_ip=ip_input_box.text.strip()
+                            )
                         game_state = 'play_multiplayer'
                     elif btn.text == "Back":
                         game_state = 'multiplayer menu'
 
     ip_input_box.update()
     join_screen()
-    return game_state
+    return game_state, multiplayer  # Ensure multiplayer is returned
 
 
 def create_join_screen():

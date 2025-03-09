@@ -124,19 +124,29 @@ class Multiplayer:
 
             udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-            while self.running:
-                # Send player position to server
-                udp_sock.sendto(json.dumps({"type": "position", "id": self.player_id, "position": (
-                    70, 400)}).encode(), (self.host_ip, PORT))
+            def listen_for_udp():
+                while self.running:
+                    try:
+                        # Send player position to server
+                        udp_sock.sendto(json.dumps({
+                            "type": "position",
+                            "id": self.player_id,
+                            "position": (70, 400)
+                        }).encode(), (self.host_ip, PORT))
 
-                # Receive updated positions from server
-                data, _ = udp_sock.recvfrom(BUFFER_SIZE)
-                message = json.loads(data.decode())
+                        # Receive updated positions from server
+                        data, _ = udp_sock.recvfrom(BUFFER_SIZE)
+                        message = json.loads(data.decode())
 
-                if message["type"] == "update":
-                    self.players = message["players"]
+                        if message["type"] == "update":
+                            self.players = message["players"]
 
-                time.sleep(0.05)
+                        time.sleep(0.05)
+                    except Exception as e:
+                        print(f"[CLIENT] UDP error: {e}")
+                        break
+
+            threading.Thread(target=listen_for_udp, daemon=True).start()
 
         except Exception as e:
             print(f"[CLIENT] Failed to connect: {e}")
