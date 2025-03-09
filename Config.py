@@ -1,6 +1,8 @@
 import pygame
 import random
-
+import sys
+import csv
+from datetime import datetime
 
 pygame.init()
 
@@ -8,41 +10,31 @@ pygame.init()
 WIDTH = 1200
 HEIGHT = 800
 GRAVITY = 0.3
-game_state = 'start'
 
-host_code = 0
-
+SCREEN = None  # Will initialize later
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GREEN = (0, 200, 0)
 
+SPAWNPIPE = pygame.USEREVENT
+
 # Other global variables
-bird_movement = 0
 game_active = True
-score = 0
 leaderboard_file = 'leaderboard.csv'
 leaderboard = []
-num_adversaries = 0
 adversaries = []
 adversary_difficulty = 'Medium'
 
-# Input box
-input_box_width = 300
-input_box_height = 40
-input_box_x = (WIDTH - input_box_width) / 2
-input_box_y = 80
+bird_movement = 0
 
-player_name = ''
+
 clock = None  # Will initialize later
 font = None  # Will initialize later
-SCREEN = None  # Will initialize later
 background = None
 bird_image = None
 bird_rect = None
 
-pipe_list = []
-SPAWNPIPE = pygame.USEREVENT
 pygame.time.set_timer(SPAWNPIPE, 1200)
 pipe_height_options = [400, 500, 600]
 
@@ -50,7 +42,7 @@ pipe_height_options = [400, 500, 600]
 SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('Flappy Bird')
 
-    # Load images
+# Load images
 background = pygame.image.load('background.jpg').convert()
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 background_width = background.get_width()
@@ -62,7 +54,7 @@ new_height = int(original_height * new_width / original_width)
 bird_image = pygame.transform.scale(bird_image, (new_width, new_height))
 bird_rect = bird_image.get_rect(center=(70, HEIGHT / 2))
 
-font = pygame.font.Font(None, 36)  # ✅ Initialize font properly
+font = pygame.font.Font(None, 36)
 
 clock = pygame.time.Clock()
 
@@ -74,7 +66,6 @@ adversary_input_box = None
 difficulty_levels = ['Easy', 'Medium', 'Hard', 'Godsend', 'Varying']
 difficulty_buttons = []
 confirm_button = None
-input_box = None
 
 connection_code_input_box = None
 connection_button = None

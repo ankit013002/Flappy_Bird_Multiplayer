@@ -2,15 +2,21 @@ from Config import *
 from Utilities import *
 from InputBox import *
 
-def settings_screen(adversary_input_box, confirm_button):
-    global difficulty_buttons
-    move_background()
 
-    # Draw the prompt for adversary count
-    draw_centered_text('Enter number of adversaries (0-99):', 150)
-    adversary_input_box.draw(SCREEN) 
-    # Draw difficulty selection
-    draw_centered_text('Select adversary difficulty:', 50)
-    for button in difficulty_buttons:
-        button.draw(SCREEN)
+def settings_logic(confirm_button):
+    game_state = 'settings'
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = event.pos
+            if confirm_button.is_hovered(mouse_pos):
+                game_state = 'start'
+    settings_screen(confirm_button)
+    return game_state
+
+
+def settings_screen(confirm_button):
+    move_background()
     confirm_button.draw(SCREEN)

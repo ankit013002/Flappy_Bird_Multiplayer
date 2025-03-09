@@ -1,14 +1,56 @@
-from Config import *
 from Utilities import *
-import random
+
+
+def play_state(pipe_list, score):
+    global bird_movement
+    game_state = 'play'
+    game_active = True
+
+    for event in pygame.event.get():
+
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+        if event.type == pygame.KEYDOWN and (event.key == pygame.K_SPACE and game_active):
+            bird_movement = -6
+
+        if event.type == SPAWNPIPE:
+            pipe_list.extend(create_pipe())
+
+    move_background()
+
+    if game_active:
+        bird_movement += GRAVITY
+        bird_rect.centery += bird_movement
+
+        SCREEN.blit(bird_image, bird_rect)
+
+        pipe_list = move_pipes(pipe_list)
+        draw_pipes(pipe_list)
+
+        game_active = check_collision(pipe_list)
+
+        if not game_active:
+            game_state = 'game_over'
+
+        score += 0.01
+        display_score(score)
+    else:
+        game_state = 'game_over'
+
+    return game_state, score
+
 
 def create_pipe():
     """Create a new pair of pipes (top and bottom)."""
     random_pipe_height = random.choice(pipe_height_options)
-    gap = 150  # Gap between pipes 
-    bottom_pipe = pygame.Rect(WIDTH, random_pipe_height, 80, HEIGHT - random_pipe_height)
+    gap = 150  # Gap between pipes
+    bottom_pipe = pygame.Rect(
+        WIDTH, random_pipe_height, 80, HEIGHT - random_pipe_height)
     top_pipe = pygame.Rect(WIDTH, 0, 80, random_pipe_height - gap)
     return bottom_pipe, top_pipe
+
 
 def draw_pipes(pipes):
     """Draw all pipes on the screen with a cool 3D shading and shadow effect."""
@@ -19,17 +61,21 @@ def draw_pipes(pipes):
 
         pygame.draw.rect(SCREEN, pipe_color, pipe)
 
-        highlight_rect = pygame.Rect(pipe.left, pipe.top, pipe.width * 0.2, pipe.height)
+        highlight_rect = pygame.Rect(
+            pipe.left, pipe.top, pipe.width * 0.2, pipe.height)
         pygame.draw.rect(SCREEN, highlight_color, highlight_rect)
 
-        shadow_rect = pygame.Rect(pipe.left + pipe.width * 0.8, pipe.top, pipe.width * 0.2, pipe.height)
+        shadow_rect = pygame.Rect(
+            pipe.left + pipe.width * 0.8, pipe.top, pipe.width * 0.2, pipe.height)
         pygame.draw.rect(SCREEN, shadow_color, shadow_rect)
 
         cap_height = 20
         if pipe.top == 0:
-            cap_rect = pygame.Rect(pipe.left - 5, pipe.bottom - 10, pipe.width + 10, cap_height)
+            cap_rect = pygame.Rect(
+                pipe.left - 5, pipe.bottom - 10, pipe.width + 10, cap_height)
         else:
-            cap_rect = pygame.Rect(pipe.left - 5, pipe.top - cap_height + 10, pipe.width + 10, cap_height)
+            cap_rect = pygame.Rect(
+                pipe.left - 5, pipe.top - cap_height + 10, pipe.width + 10, cap_height)
         pygame.draw.ellipse(SCREEN, pipe_color, cap_rect)
 
         cap_highlight_rect = pygame.Rect(
@@ -48,11 +94,13 @@ def draw_pipes(pipes):
         )
         pygame.draw.ellipse(SCREEN, shadow_color, cap_shadow_rect)
 
+
 def move_pipes(pipes):
     """Move pipes to the left and remove them if they go off-screen."""
     for pipe in pipes:
         pipe.centerx -= 5  # Pipe speed
     return [pipe for pipe in pipes if pipe.right > 0]
+
 
 def check_collision(pipes):
     """Check for collisions between the bird and pipes or boundaries."""
@@ -60,6 +108,7 @@ def check_collision(pipes):
         (False for pipe in pipes if bird_rect.colliderect(pipe)),
         bird_rect.top > 0 and bird_rect.bottom < HEIGHT,
     )
+
 
 def display_score(score):
     """Display the current score on the screen."""
