@@ -200,21 +200,19 @@ def join_logic():
                     if btn.text == "Connect":
                         ip = ip_input_box.text.strip()
                         if Multiplayer.is_valid_ip(ip):
-                            # Create new multiplayer instance
                             multiplayer = Multiplayer(
                                 is_host=False, host_ip=ip)
-
-                            # Try to connect and check success
                             if multiplayer.player_id is not None:
-                                # Set ready status
                                 multiplayer.set_ready(True)
                                 game_state = 'play_multiplayer'
                             else:
-                                # Failed to connect - stay on join screen
                                 connection_error = True
-
                     elif btn.text == "Back":
                         game_state = 'multiplayer menu'
+
+    # Check if the host has started the game
+    if multiplayer is not None and multiplayer.game_started:
+        game_state = 'play_multiplayer'
 
     ip_input_box.update()
     join_screen()
