@@ -49,18 +49,15 @@ def play_multiplayer_logic(multiplayer):
         # Check if it's time to spawn a pipe (only host manages pipe creation)
         if event.type == SPAWNPIPE and multiplayer.is_host and multiplayer.game_started:
             new_pipes = create_pipe()
-            # Convert Rect objects to network format (tuples)
-            pipe_data = [(pipe.x, pipe.y, pipe.width, pipe.height)
-                         for pipe in new_pipes]
+            # Update the host’s own pipe list directly
+            new_pipe_data = [(pipe.x, pipe.y, pipe.width, pipe.height)
+                             for pipe in new_pipes]
+            multiplayer.pipe_list.extend(new_pipe_data)
             pipe_message = {
                 "type": "pipe_spawn",
                 "id": multiplayer.player_id,
-                "pipes": pipe_data
+                "pipes": new_pipe_data
             }
-            # Send to self first to ensure host also processes pipes
-            if multiplayer.pipe_list is not None:
-                multiplayer.pipe_list.extend(pipe_data)
-            # Host sends pipe data to clients
             if multiplayer.udp_sock:
                 multiplayer.udp_sock.sendto(json.dumps(
                     pipe_message).encode(), (multiplayer.host_ip, PORT))
@@ -82,29 +79,27 @@ def play_multiplayer_logic(multiplayer):
         multiplayer.update_position(bird_rect.x, bird_rect.centery, score)
 
         # Get pipe list from multiplayer
+        # Get pipe list from multiplayer
         if multiplayer.pipe_list:
-            # Convert network pipe format to Pygame Rect objects
             pipe_list = []
             for pipe_data in multiplayer.pipe_list:
-                # Handle both directly stored tuples and nested lists
-                if isinstance(pipe_data, list) and len(pipe_data) == 4:
-                    # Direct tuple format
-                    x, y, width, height = pipe_data
-                    pipe_list.append(pygame.Rect(x, y, width, height))
-                elif isinstance(pipe_data, tuple) and len(pipe_data) == 4:
-                    # Direct tuple format
+                if len(pipe_data) == 4:
                     x, y, width, height = pipe_data
                     pipe_list.append(pygame.Rect(x, y, width, height))
 
-        # Move pipes (only the host's pipes are used)
+        # Only move pipes if host has started the game
         if pipe_list:
-            # Only move pipes if host has started the game
             pipe_list = move_pipes(pipe_list)
             draw_pipes(pipe_list)
+            # If we're the host, update the network state with new positions.
+            if multiplayer.is_host:
+                multiplayer.pipe_list = [
+                    (pipe.x, pipe.y, pipe.width, pipe.height) for pipe in pipe_list]
 
         # Check for collisions with pipes
         if check_collision(pipe_list) == False:
             game_active = False
+            game_state = 'game_over'
 
         # Draw all other players' birds
         for player_id, data in multiplayer.players.items():
