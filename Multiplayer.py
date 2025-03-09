@@ -108,9 +108,15 @@ def host_logic():
     global multiplayer
     game_state = 'host'
 
-    # Initialize multiplayer if not already done
+    # If we have not already created the host...
     if multiplayer is None or not multiplayer.is_host:
         multiplayer = Multiplayer(is_host=True)
+        # Actually generate the pipes
+        from Multiplayer import generate_initial_pipes
+        multiplayer.pipe_list = generate_initial_pipes(pipe_count=50)
+
+    # Now stay in the 'host' state until the user presses "Start Game" or "Back."
+    # DO NOT set game_state = 'play_multiplayer' here yet!
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -118,14 +124,15 @@ def host_logic():
                 multiplayer.cleanup()
             pygame.quit()
             sys.exit()
+
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos
             for btn in host_buttons:
                 if btn.is_hovered(mouse_pos):
                     if btn.text == "Start Game":
-                        if multiplayer and multiplayer.get_player_count() > 0:
-                            if multiplayer.request_game_start():
-                                game_state = 'play_multiplayer'
+                        # Only transition if the host has at least 1 other player or not – your logic
+                        if multiplayer.request_game_start():
+                            game_state = 'play_multiplayer'
                     elif btn.text == "Back":
                         if multiplayer:
                             multiplayer.stop_server()
@@ -133,7 +140,7 @@ def host_logic():
                         game_state = 'multiplayer menu'
 
     host_screen()
-    return game_state
+    return game_state, multiplayer
 
 
 def create_host_screen():
@@ -179,6 +186,33 @@ def host_screen():
         btn.draw(SCREEN)
 
 # Join Game Functions
+
+
+def generate_initial_pipes(pipe_count=50, x_start=WIDTH+100, x_gap=300):
+    """
+    Generates 'pipe_count' random pipes ahead of time, each spaced by x_gap in x-direction.
+    Returns a list of (x, y, width, height) tuples.
+    """
+    from Config import pipe_height_options  # or define your own
+    pipe_list = []
+    gap = 200  # gap between top/bottom
+
+    current_x = x_start
+    for _ in range(pipe_count):
+        # pick a random vertical position
+        random_pipe_pos = random.choice(pipe_height_options)
+
+        # bottom
+        bottom_pipe = (current_x, random_pipe_pos, 80, 800)
+        # top
+        top_pipe = (current_x, random_pipe_pos - gap - 800, 80, 800)
+
+        pipe_list.append(bottom_pipe)
+        pipe_list.append(top_pipe)
+
+        current_x += x_gap  # space each pair
+
+    return pipe_list
 
 
 def join_logic():

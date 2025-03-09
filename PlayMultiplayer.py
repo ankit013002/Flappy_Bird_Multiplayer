@@ -43,22 +43,22 @@ def play_multiplayer_logic(multiplayer):
                 return game_state, multiplayer
 
         # Only the host spawns pipes
-        if event.type == SPAWNPIPE and multiplayer.is_host and multiplayer.game_started:
-            new_pipes = create_pipe()
-            new_pipe_data = [(p.x, p.y, p.width, p.height) for p in new_pipes]
-            multiplayer.pipe_list.extend(new_pipe_data)
+        # if event.type == SPAWNPIPE and multiplayer.is_host and multiplayer.game_started:
+        #     new_pipes = create_pipe()
+        #     new_pipe_data = [(p.x, p.y, p.width, p.height) for p in new_pipes]
+        #     multiplayer.pipe_list.extend(new_pipe_data)
 
-            # Broadcast the new pipe data to clients
-            pipe_message = {
-                "type": "pipe_spawn",
-                "id": multiplayer.player_id,
-                "pipes": new_pipe_data
-            }
-            if multiplayer.udp_sock:
-                multiplayer.udp_sock.sendto(
-                    json.dumps(pipe_message).encode(),
-                    (multiplayer.host_ip, PORT)
-                )
+        #     # Broadcast the new pipe data to clients
+        #     pipe_message = {
+        #         "type": "pipe_spawn",
+        #         "id": multiplayer.player_id,
+        #         "pipes": new_pipe_data
+        #     }
+        #     if multiplayer.udp_sock:
+        #         multiplayer.udp_sock.sendto(
+        #             json.dumps(pipe_message).encode(),
+        #             (multiplayer.host_ip, PORT)
+        #         )
 
     # Move background as usual
     move_background()

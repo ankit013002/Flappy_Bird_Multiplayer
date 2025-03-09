@@ -42,8 +42,7 @@ def main_game_loop():
             game_state = multiplayer_menu_logic()
 
         elif game_state == 'host':
-            multiplayer = Multiplayer(is_host=True)  # Store instance
-            game_state = 'play_multiplayer'
+            game_state, multiplayer = host_logic()
 
         elif game_state == 'join':
             game_state, multiplayer = join_logic()  # Ensure multiplayer is set
