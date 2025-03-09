@@ -8,16 +8,14 @@ from Multiplayer import *
 from GameLogic import *
 from GameOver import *
 from PlayMultiplayer import *
-import pygame
 
 
 def main_game_loop():
-    global input_box, multiplayer  # Ensure multiplayer is accessible
+    global multiplayer  # Ensure multiplayer persists across game states
 
     score = 0
     pipe_list = []
     game_state = 'start'
-    multiplayer = None  # Initialize multiplayer to None
 
     input_box = InputBox(x=((WIDTH - 300) / 2), y=80, w=300, h=40, font=font)
     confirm_button = Button('Confirm', (WIDTH / 2 - 125, HEIGHT / 2 + 100),
@@ -44,21 +42,18 @@ def main_game_loop():
             game_state = multiplayer_menu_logic()
 
         elif game_state == 'host':
-            game_state = host_logic()
+            multiplayer = Multiplayer(is_host=True)  # Store instance
+            game_state = 'play_multiplayer'
 
         elif game_state == 'join':
-            game_state, multiplayer = join_logic()  # Fix: Capture multiplayer
+            game_state, multiplayer = join_logic()  # Ensure multiplayer is set
 
         elif game_state == 'play_multiplayer':
             if multiplayer is None:
                 print("[ERROR] Multiplayer instance is not set in main loop!")
-                game_state = 'multiplayer menu'  # Redirect back to menu instead of crashing
+                game_state = 'multiplayer menu'  # Prevent crashing
             else:
-                game_state, multiplayer = play_multiplayer_logic(
-                    multiplayer, pipe_list)
-                if game_state == 'game_over':
-                    update_leader_board(player_name, score)
-                display_score(score)
+                game_state, multiplayer = play_multiplayer_logic(multiplayer)
 
         elif game_state == 'settings':
             game_state = settings_logic(confirm_button)

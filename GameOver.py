@@ -2,14 +2,19 @@ from Utilities import *
 
 
 def game_over_screen_logic(score):
+    """Handles game over screen logic and resets necessary game states."""
+    global bird_movement  # Reset bird movement on restart
     game_state = 'game_over'
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            bird_movement = 0  # Reset bird movement so it doesn't start falling immediately
             game_state = 'start'
+
     game_over_screen(score)
     return game_state
 
