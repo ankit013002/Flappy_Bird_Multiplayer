@@ -15,6 +15,13 @@ def create_pipe():
 
     return [bottom_pipe, top_pipe]
 
+# Add this helper function to convert pipe Rects to network-transmissible format:
+
+
+def pipes_to_network_format(pipes):
+    """Convert Pygame Rect pipe objects to network-transmissible format."""
+    return [(pipe.x, pipe.y, pipe.width, pipe.height) for pipe in pipes]
+
 
 def move_pipes(pipes):
     """Move pipes to the left and remove them when they're off screen."""

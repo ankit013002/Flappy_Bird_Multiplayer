@@ -49,12 +49,18 @@ def play_multiplayer_logic(multiplayer):
         # Check if it's time to spawn a pipe (only host manages pipe creation)
         if event.type == SPAWNPIPE and multiplayer.is_host and multiplayer.game_started:
             new_pipes = create_pipe()
+            # Convert Rect objects to network format (tuples)
+            pipe_data = [(pipe.x, pipe.y, pipe.width, pipe.height)
+                         for pipe in new_pipes]
             pipe_message = {
                 "type": "pipe_spawn",
                 "id": multiplayer.player_id,
-                "pipes": [(pipe.x, pipe.y, pipe.width, pipe.height) for pipe in new_pipes]
+                "pipes": pipe_data
             }
-            # Host sends pipe data to server
+            # Send to self first to ensure host also processes pipes
+            if multiplayer.pipe_list is not None:
+                multiplayer.pipe_list.extend(pipe_data)
+            # Host sends pipe data to clients
             if multiplayer.udp_sock:
                 multiplayer.udp_sock.sendto(json.dumps(
                     pipe_message).encode(), (multiplayer.host_ip, PORT))
@@ -80,7 +86,13 @@ def play_multiplayer_logic(multiplayer):
             # Convert network pipe format to Pygame Rect objects
             pipe_list = []
             for pipe_data in multiplayer.pipe_list:
-                if len(pipe_data) == 4:  # Ensure we have valid pipe data
+                # Handle both directly stored tuples and nested lists
+                if isinstance(pipe_data, list) and len(pipe_data) == 4:
+                    # Direct tuple format
+                    x, y, width, height = pipe_data
+                    pipe_list.append(pygame.Rect(x, y, width, height))
+                elif isinstance(pipe_data, tuple) and len(pipe_data) == 4:
+                    # Direct tuple format
                     x, y, width, height = pipe_data
                     pipe_list.append(pygame.Rect(x, y, width, height))
 

@@ -141,7 +141,8 @@ class Multiplayer:
                 elif message["type"] == "pipe_spawn" and self.is_host:
                     # Only host should manage pipes to keep them in sync
                     new_pipes = message["pipes"]
-                    self.pipe_list.append(new_pipes)
+                    # Use extend instead of append to keep flat structure
+                    self.pipe_list.extend(new_pipes)
                     self.broadcast_pipes()
 
                 # Send updated game state to the client who sent this update
