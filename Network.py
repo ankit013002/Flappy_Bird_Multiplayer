@@ -94,8 +94,9 @@ class Multiplayer:
                 if message["type"] == "position":
                     self.players[message["id"]] = message["position"]
 
-                # Send the updated positions back to all clients
-                for player_id, pos in self.players.items():
+                # Iterate over a copy to avoid modifying the dictionary during iteration
+                players_copy = self.players.copy()
+                for player_id, pos in players_copy.items():
                     self.udp_sock.sendto(json.dumps(
                         {"type": "update", "players": self.players}).encode(), addr)
             except OSError as e:

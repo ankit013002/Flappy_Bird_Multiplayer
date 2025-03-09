@@ -8,10 +8,11 @@ def play_multiplayer_logic(multiplayer):
 
     game_state = 'play_multiplayer'
     game_active = True
+    pipe_list = []  # Ensure this is initialized
 
     if multiplayer is None:  # Ensure multiplayer is initialized
         print("[ERROR] Multiplayer instance is not set! Returning to multiplayer menu.")
-        return 'multiplayer menu'  # Prevent crash by returning to menu
+        return 'multiplayer menu', multiplayer  # Prevent crash by returning to menu
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -28,7 +29,7 @@ def play_multiplayer_logic(multiplayer):
         bird_rect.centery += bird_movement
 
         # Send player position to server
-        if multiplayer:
+        if multiplayer and multiplayer.player_id is not None:
             multiplayer.client_connect()
 
         # Draw all players
@@ -39,7 +40,7 @@ def play_multiplayer_logic(multiplayer):
 
         SCREEN.blit(bird_image, bird_rect)
 
-        pipe_list = move_pipes(pipe_list)
+        pipe_list = move_pipes(pipe_list)  # Now this is initialized
         draw_pipes(pipe_list)
 
         game_active = check_collision(pipe_list)

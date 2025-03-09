@@ -54,7 +54,8 @@ def main_game_loop():
                 print("[ERROR] Multiplayer instance is not set in main loop!")
                 game_state = 'multiplayer menu'  # Redirect back to menu instead of crashing
             else:
-                game_state, multiplayer = play_multiplayer_logic(multiplayer)
+                game_state, multiplayer = play_multiplayer_logic(
+                    multiplayer, pipe_list)
                 if game_state == 'game_over':
                     update_leader_board(player_name, score)
                 display_score(score)
