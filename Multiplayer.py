@@ -22,8 +22,11 @@ def multiplayer_menu_logic():
             for btn in multiplayer_buttons:
                 if btn.is_hovered(mouse_pos):
                     if btn.text == 'Host':
-                        game_state = 'host'
-                        multiplayer = Multiplayer(is_host=True)
+                        if multiplayer is None:  # Prevent multiple instances
+                            game_state = 'host'
+                            multiplayer = Multiplayer(is_host=True)
+                        else:
+                            print("[ERROR] Server is already running!")
                     elif btn.text == 'Join':
                         game_state = 'join'
 
@@ -69,11 +72,11 @@ ip_input_box = None
 
 
 def host_logic():
-    global multiplayer  # Ensure multiplayer is updated globally
+    global multiplayer
     game_state = 'host'
 
-    # Ensure multiplayer instance is created
-    multiplayer = Multiplayer(is_host=True)
+    if multiplayer is None:  # Prevent duplicate server instances
+        multiplayer = Multiplayer(is_host=True)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -86,7 +89,7 @@ def host_logic():
                     if btn.text == "Back":
                         game_state = 'multiplayer menu'
                     elif btn.text == "Start":
-                        game_state = 'play_multiplayer'  # Transition to multiplayer mode
+                        game_state = 'play_multiplayer'
 
     host_screen()
     return game_state
