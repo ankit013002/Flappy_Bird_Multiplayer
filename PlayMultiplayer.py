@@ -6,14 +6,14 @@ multiplayer = None  # Will be set when game starts
 
 
 def play_multiplayer_logic():
-    global multiplayer, bird_movement  # Declare global multiplayer
+    global multiplayer, bird_movement  # Ensure multiplayer is global
 
     game_state = 'play_multiplayer'
     game_active = True
 
-    if multiplayer is None:  # Check if multiplayer is initialized
-        print("[ERROR] Multiplayer instance is not set!")
-        return 'multiplayer menu'  # Redirect to multiplayer menu instead of crashing
+    if multiplayer is None:  # Ensure multiplayer is initialized
+        print("[ERROR] Multiplayer instance is not set! Returning to multiplayer menu.")
+        return 'multiplayer menu'  # Prevent crash by returning to menu
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -30,9 +30,10 @@ def play_multiplayer_logic():
         bird_rect.centery += bird_movement
 
         # Send player position to server
-        multiplayer.client_connect()  # Ensure connection happens only if valid
+        if multiplayer:
+            multiplayer.client_connect()
 
-        # Draw all players (check multiplayer is valid)
+        # Draw all players
         if multiplayer.players:
             for player_id, pos in multiplayer.players.items():
                 # Red birds for other players
@@ -48,4 +49,4 @@ def play_multiplayer_logic():
     pygame.display.update()
     clock.tick(60)
 
-    return game_state  # Ensure it returns a valid state
+    return game_state

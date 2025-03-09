@@ -69,8 +69,11 @@ ip_input_box = None
 
 
 def host_logic():
-    global multiplayer
+    global multiplayer  # Ensure multiplayer is updated globally
     game_state = 'host'
+
+    # Ensure multiplayer instance is created
+    multiplayer = Multiplayer(is_host=True)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -83,7 +86,7 @@ def host_logic():
                     if btn.text == "Back":
                         game_state = 'multiplayer menu'
                     elif btn.text == "Start":
-                        game_state = 'play_multiplayer'
+                        game_state = 'play_multiplayer'  # Transition to multiplayer mode
 
     host_screen()
     return game_state
@@ -112,7 +115,7 @@ def host_screen():
 
 
 def join_logic():
-    global multiplayer, ip_input_box
+    global multiplayer  # Ensure multiplayer is updated globally
     game_state = 'join'
 
     for event in pygame.event.get():
@@ -128,7 +131,8 @@ def join_logic():
                 if btn.is_hovered(mouse_pos):
                     if btn.text == "Connect":
                         multiplayer = Multiplayer(
-                            is_host=False, host_ip=ip_input_box.text.strip())
+                            is_host=False, host_ip=ip_input_box.text.strip()
+                        )  # Assign multiplayer instance
                         game_state = 'play_multiplayer'
                     elif btn.text == "Back":
                         game_state = 'multiplayer menu'
