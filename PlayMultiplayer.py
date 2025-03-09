@@ -6,7 +6,8 @@ multiplayer = None  # Will be set when game starts
 
 
 def play_multiplayer_logic():
-    global multiplayer
+    global multiplayer, bird_movement  # Declare bird_movement as global
+
     game_state = 'play_multiplayer'
     game_active = True
 
@@ -16,12 +17,12 @@ def play_multiplayer_logic():
             sys.exit()
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and game_active:
-            bird_movement = -6
+            bird_movement = -6  # No longer an UnboundLocalError
 
     move_background()
 
     if game_active:
-        bird_movement += GRAVITY
+        bird_movement += GRAVITY  # Now it can be accessed correctly
         bird_rect.centery += bird_movement
 
         # Send player position to server
