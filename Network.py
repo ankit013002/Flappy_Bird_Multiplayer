@@ -299,7 +299,22 @@ class Multiplayer:
                         print("[CLIENT] Game started by host!")
 
                     elif message["type"] == "pipe_update":
-                        self.pipe_list = message["pipes"]
+                        server_pipes = message["pipes"]
+                        # Smoothly reconcile local pipe list with server update.
+                        if self.pipe_list and len(self.pipe_list) == len(server_pipes):
+                            smoothed_pipes = []
+                            # Adjust this value for smoother or faster corrections.
+                            alpha = 0.1
+                            for local, server in zip(self.pipe_list, server_pipes):
+                                new_x = local[0] + alpha * \
+                                    (server[0] - local[0])
+                                new_y = local[1] + alpha * \
+                                    (server[1] - local[1])
+                                smoothed_pipes.append(
+                                    (new_x, new_y, server[2], server[3]))
+                            self.pipe_list = smoothed_pipes
+                        else:
+                            self.pipe_list = server_pipes
 
                     elif message["type"] == "player_count":
                         print(
