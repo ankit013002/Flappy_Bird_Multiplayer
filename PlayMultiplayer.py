@@ -108,9 +108,9 @@ def play_multiplayer_logic(multiplayer):
 
         # Draw all other players' birds
         for player_id, data in multiplayer.players.items():
-            if player_id != multiplayer.player_id and "position" in data:
+            if player_id != str(multiplayer.player_id) and "position" in data:
                 pos = data["position"]
-                color_idx = (player_id - 1) % len(PLAYER_COLORS)
+                color_idx = (int(player_id) - 1) % len(PLAYER_COLORS)
                 color = PLAYER_COLORS[color_idx]
 
                 # Draw other player birds (simple circle with player number)
