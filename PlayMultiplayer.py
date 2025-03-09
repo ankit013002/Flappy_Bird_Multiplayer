@@ -20,7 +20,7 @@ PLAYER_COLORS = [
 
 
 def play_multiplayer_logic(multiplayer):
-    global bird_movement  # For the local player's bird
+    global bird_movement
 
     game_state = 'play_multiplayer'
     game_active = True
@@ -30,14 +30,9 @@ def play_multiplayer_logic(multiplayer):
         print("[ERROR] Multiplayer instance is not set! Returning to multiplayer menu.")
         return 'multiplayer menu', multiplayer
 
-    # Initialize a persistent local pipe list (only for the client)
-    if not hasattr(play_multiplayer_logic, "local_pipe_list"):
-        play_multiplayer_logic.local_pipe_list = []
-
-    # Process events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            multiplayer.cleanup()  # Properly cleanup network resources
+            multiplayer.cleanup()
             pygame.quit()
             sys.exit()
         if event.type == pygame.KEYDOWN:
@@ -46,94 +41,94 @@ def play_multiplayer_logic(multiplayer):
             elif event.key == pygame.K_ESCAPE:
                 game_state = 'multiplayer menu'
                 return game_state, multiplayer
-        # Only the host spawns new pipes
+
+        # Only the host spawns pipes
         if event.type == SPAWNPIPE and multiplayer.is_host and multiplayer.game_started:
             new_pipes = create_pipe()
-            new_pipe_data = [(pipe.x, pipe.y, pipe.width, pipe.height)
-                             for pipe in new_pipes]
+            new_pipe_data = [(p.x, p.y, p.width, p.height) for p in new_pipes]
             multiplayer.pipe_list.extend(new_pipe_data)
+
+            # Broadcast the new pipe data to clients
             pipe_message = {
                 "type": "pipe_spawn",
                 "id": multiplayer.player_id,
                 "pipes": new_pipe_data
             }
             if multiplayer.udp_sock:
-                multiplayer.udp_sock.sendto(json.dumps(
-                    pipe_message).encode(), (multiplayer.host_ip, PORT))
+                multiplayer.udp_sock.sendto(
+                    json.dumps(pipe_message).encode(),
+                    (multiplayer.host_ip, PORT)
+                )
 
-    # Background movement
+    # Move background as usual
     move_background()
 
-    # Game logic if game has started and we're active
+    # ---------------------
+    #  MAIN GAME LOGIC
+    # ---------------------
     if multiplayer.game_started and game_active:
-        # Bird physics
+        # Update the bird
         bird_movement += GRAVITY
         bird_rect.centery += bird_movement
-
-        # Check for game over by screen bounds
         if bird_rect.top <= 0 or bird_rect.bottom >= HEIGHT:
             game_active = False
 
-        # Update our position on the server
+        # Tell the server our current position/score
         multiplayer.update_position(bird_rect.x, bird_rect.centery, score)
 
-        # --- Client-side pipe simulation ---
-        # For clients, we use our persistent local copy rather than rebuilding
-        # from the network state every frame.
-        if not multiplayer.is_host:
-            # If the network pipe list has changed (for example, new pipes spawned),
-            # update our local copy.
-            if multiplayer.pipe_list and (len(multiplayer.pipe_list) != len(play_multiplayer_logic.local_pipe_list)):
-                play_multiplayer_logic.local_pipe_list = [pygame.Rect(x, y, w, h)
-                                                          for (x, y, w, h) in multiplayer.pipe_list]
-            # Otherwise, continue moving our local pipe list.
-            if play_multiplayer_logic.local_pipe_list:
-                play_multiplayer_logic.local_pipe_list = move_pipes(
-                    play_multiplayer_logic.local_pipe_list)
-                draw_pipes(play_multiplayer_logic.local_pipe_list)
-            pipe_list = play_multiplayer_logic.local_pipe_list
-        else:
-            # For the host, rebuild the pipe list from the network state.
-            pipe_list = []
-            for pipe_data in multiplayer.pipe_list:
-                if len(pipe_data) == 4:
-                    x, y, width, height = pipe_data
-                    pipe_list.append(pygame.Rect(x, y, width, height))
-            if pipe_list:
-                pipe_list = move_pipes(pipe_list)
-                draw_pipes(pipe_list)
-                # Host updates its own network state so future messages are current.
-                multiplayer.pipe_list = [
-                    (pipe.x, pipe.y, pipe.width, pipe.height) for pipe in pipe_list]
+        # HOST: move the pipes
+        if multiplayer.is_host:
+            # Convert pipe list from network data to Rects
+            host_pipe_list = [
+                pygame.Rect(x, y, w, h) for (x, y, w, h) in multiplayer.pipe_list
+            ]
+            # Move them on the HOST side only
+            host_pipe_list = move_pipes(host_pipe_list)
 
-        # Collision detection using our chosen pipe list (local copy for client)
-        if check_collision(pipe_list) == False:
+            # Update the authoritative pipe_list
+            multiplayer.pipe_list = [(p.x, p.y, p.width, p.height)
+                                     for p in host_pipe_list]
+
+            # Draw them
+            draw_pipes(host_pipe_list)
+            active_pipe_rects = host_pipe_list
+
+        else:
+            # CLIENT: just read and draw. DO NOT move them here!
+            client_pipe_list = [
+                pygame.Rect(x, y, w, h) for (x, y, w, h) in multiplayer.pipe_list
+            ]
+            draw_pipes(client_pipe_list)
+            active_pipe_rects = client_pipe_list
+
+        # Now that we have the final pipe Rects for this frame (host or client),
+        # we can check collisions for our local bird
+        if check_collision(active_pipe_rects) == False:
             game_active = False
             game_state = 'game_over'
 
-        # Draw other players' birds
-        for player_id, data in multiplayer.players.items():
-            if player_id != str(multiplayer.player_id) and "position" in data:
-                pos = data["position"]
-                color_idx = (int(player_id) - 1) % len(PLAYER_COLORS)
-                color = PLAYER_COLORS[color_idx]
-                pygame.draw.circle(SCREEN, color, (pos[0], pos[1]), 20)
-                player_num = font.render(str(player_id), True, WHITE)
-                num_rect = player_num.get_rect(center=(pos[0], pos[1]))
-                SCREEN.blit(player_num, num_rect)
+        # Draw other players
+        for pid, data in multiplayer.players.items():
+            if pid != str(multiplayer.player_id) and "position" in data:
+                x_pos, y_pos = data["position"]
+                color_idx = (int(pid) - 1) % len(PLAYER_COLORS)
+                pygame.draw.circle(
+                    SCREEN, PLAYER_COLORS[color_idx], (x_pos, y_pos), 20)
+                label = font.render(str(pid), True, WHITE)
+                SCREEN.blit(label, label.get_rect(center=(x_pos, y_pos)))
 
         # Draw our bird
         SCREEN.blit(bird_image, bird_rect)
 
-        # Display player count
-        player_count = font.render(
+        # Player count
+        player_count_surf = font.render(
             f"Players: {len(multiplayer.players)}", True, WHITE)
-        SCREEN.blit(player_count, (20, 20))
+        SCREEN.blit(player_count_surf, (20, 20))
 
-        # Increment score and display it
-        if game_active:
-            score += 0.01
-            display_score(score)
+        # Increment local score
+        score += 0.01
+        display_score(score)
+
     else:
         # When game hasn't started or we're not active
         if not multiplayer.game_started:
@@ -144,7 +139,8 @@ def play_multiplayer_logic(multiplayer):
             if multiplayer.is_host:
                 start_button = pygame.Rect(
                     WIDTH/2 - 100, HEIGHT/2 + 50, 200, 50)
-                pygame.draw.rect(SCREEN, GREEN, start_button, border_radius=10)
+                pygame.draw.rect(
+                    SCREEN, GREEN, start_button, border_radius=10)
                 start_text = font.render("Start Game", True, BLACK)
                 SCREEN.blit(
                     start_text, (WIDTH/2 - start_text.get_width()/2, HEIGHT/2 + 65))
