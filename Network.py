@@ -166,10 +166,11 @@ class Multiplayer:
             print(f"[ERROR] Failed to send game state: {e}")
 
     def broadcast_game_start(self):
-        """Notify all clients that the game has started."""
+        """Notify all clients that the game has started and send the FULL pipe list."""
         start_msg = json.dumps({
             "type": "game_start",
-            "pipes": self.pipe_list
+            "pipes": self.pipe_list,  # Send the COMPLETE pipe list
+            "timestamp": time.time()  # Include a timestamp for sync
         }).encode()
 
         if self.udp_sock:
@@ -178,13 +179,14 @@ class Multiplayer:
                 if player_id != 1 and "address" in self.players[player_id]:
                     self.udp_sock.sendto(
                         start_msg, self.players[player_id]["address"])
-            print("[HOST] Game start broadcast sent to all players")
+            print("[HOST] Game start broadcast sent to all players with full pipe data")
 
     def broadcast_pipes(self):
-        """Send updated pipes to all connected clients."""
+        """Send updated pipes to all connected clients with timestamp."""
         pipe_msg = json.dumps({
             "type": "pipe_update",
-            "pipes": self.pipe_list
+            "pipes": self.pipe_list,
+            "timestamp": time.time()  # Add timestamp for clients to sync with
         }).encode()
 
         if self.udp_sock:
@@ -193,7 +195,6 @@ class Multiplayer:
                 if player_id != 1 and "address" in self.players[player_id]:
                     self.udp_sock.sendto(
                         pipe_msg, self.players[player_id]["address"])
-            print("[HOST] Pipe updates sent to all players")
 
     def start_game(self):
         """Host tells all clients to start the game."""
@@ -268,19 +269,24 @@ class Multiplayer:
 
     def client_udp_loop(self):
         """Client: continuously send position updates and listen for game state."""
+        last_position_update = 0
         while self.running and self.player_id:
             try:
-                # Send our position update
-                if self.player_id is not None:
-                    position_data = {
-                        "type": "position",
-                        "id": self.player_id,
-                        # This will be updated in gameplay
-                        "position": (70, 400),
-                        "score": 0
-                    }
-                    self.udp_sock.sendto(json.dumps(
-                        position_data).encode(), (self.host_ip, PORT))
+                current_time = time.time()
+
+                # Send our position update (throttled to avoid flooding)
+                if current_time - last_position_update > 0.05:  # 20 updates per second
+                    if self.player_id is not None:
+                        position_data = {
+                            "type": "position",
+                            "id": self.player_id,
+                            "position": (70, 400),
+                            "score": 0,
+                            "timestamp": current_time
+                        }
+                        self.udp_sock.sendto(json.dumps(
+                            position_data).encode(), (self.host_ip, PORT))
+                        last_position_update = current_time
 
                 # Try to receive game state updates
                 self.udp_sock.settimeout(0.1)
@@ -290,31 +296,23 @@ class Multiplayer:
 
                     if message["type"] == "game_state":
                         self.players = message["players"]
-                        self.pipe_list = message["pipes"]
+                        # Don't overwrite pipe list here, let pipe_update handle it
                         self.game_started = message["game_started"]
 
                     elif message["type"] == "game_start":
                         self.game_started = True
+                        # On game start, fully replace our pipe list with the host's
                         self.pipe_list = message["pipes"]
-                        print("[CLIENT] Game started by host!")
+                        print(
+                            "[CLIENT] Game started by host! Received full pipe data.")
 
-                    elif message["type"] == "pipe_update":
+                    elif message["type"] in ["pipe_update", "pipe_sync", "pipe_spawn"]:
+                        # For any pipe-related update, fully adopt the server's pipe list
                         server_pipes = message["pipes"]
-                        # Smoothly reconcile local pipe list with server update.
-                        if self.pipe_list and len(self.pipe_list) == len(server_pipes):
-                            smoothed_pipes = []
-                            # Adjust this value for smoother or faster corrections.
-                            alpha = 0.1
-                            for local, server in zip(self.pipe_list, server_pipes):
-                                new_x = local[0] + alpha * \
-                                    (server[0] - local[0])
-                                new_y = local[1] + alpha * \
-                                    (server[1] - local[1])
-                                smoothed_pipes.append(
-                                    (new_x, new_y, server[2], server[3]))
-                            self.pipe_list = smoothed_pipes
-                        else:
-                            self.pipe_list = server_pipes
+                        # Complete replacement instead of interpolation for sync events
+                        self.pipe_list = server_pipes
+                        print(
+                            f"[CLIENT] Received pipe update with {len(server_pipes)} pipes")
 
                     elif message["type"] == "player_count":
                         print(
@@ -323,7 +321,7 @@ class Multiplayer:
                 except socket.timeout:
                     pass  # No data received, continue
 
-                time.sleep(0.05)  # Don't flood the network
+                time.sleep(0.01)  # Small sleep to prevent CPU overload
 
             except Exception as e:
                 print(f"[CLIENT] UDP error: {e}")
@@ -388,8 +386,38 @@ class Multiplayer:
 
     def cleanup(self):
         """Clean up resources when the game exits."""
+        print("[NETWORK] Cleaning up multiplayer resources...")
         self.running = False
+
+        # Send a disconnect message if we're a client
+        if not self.is_host and self.player_id is not None and self.udp_sock:
+            try:
+                disconnect_msg = json.dumps({
+                    "type": "disconnect",
+                    "id": self.player_id
+                }).encode()
+                self.udp_sock.sendto(disconnect_msg, (self.host_ip, PORT))
+            except:
+                pass  # Ignore errors during cleanup
+
+        # Close all network resources
         if self.tcp_sock:
-            self.tcp_sock.close()
+            try:
+                self.tcp_sock.close()
+            except:
+                pass
+            self.tcp_sock = None
+
         if self.udp_sock:
-            self.udp_sock.close()
+            try:
+                self.udp_sock.close()
+            except:
+                pass
+            self.udp_sock = None
+
+        # Clear data structures
+        self.pipe_list = []
+        self.players = {}
+        self.game_started = False
+
+        print("[NETWORK] Cleanup completed")

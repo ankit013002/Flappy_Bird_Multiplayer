@@ -1,7 +1,7 @@
 from Network import Multiplayer
 from Utilities import *
 from GameLogic import *
-import pygame
+import time
 import random
 import json
 from Constants import *
@@ -18,19 +18,23 @@ PLAYER_COLORS = [
     (128, 0, 128)   # Purple
 ]
 
+# Global variables for synchronization
+last_sync_time = 0
+SYNC_INTERVAL = 0.2  # Sync every 200ms
+PIPE_SPEED = 5  # Define the pipe speed explicitly for consistency
+
 
 def play_multiplayer_logic(multiplayer):
     """
     Main multiplayer game loop for both host and client.
-    The fix is: the client also calls move_pipes() each frame
-    to avoid stuttering from only updating on network packets.
+    Improved with better pipe synchronization.
     """
-
-    global bird_movement
+    global bird_movement, last_sync_time
 
     game_state = 'play_multiplayer'
     game_active = True
     score = 0
+    current_time = time.time()
 
     if multiplayer is None:
         print("[ERROR] Multiplayer instance is not set! Returning to multiplayer menu.")
@@ -48,24 +52,24 @@ def play_multiplayer_logic(multiplayer):
                 game_state = 'multiplayer menu'
                 return game_state, multiplayer
 
-        # If you still want the host to spawn pipes on a timer, that's fine.
-        # Just be sure the client also moves them each frame (see below).
-        # if event.type == SPAWNPIPE and multiplayer.is_host and multiplayer.game_started:
-        #     new_pipes = create_pipe()
-        #     new_pipe_data = [(p.x, p.y, p.width, p.height) for p in new_pipes]
-        #     multiplayer.pipe_list.extend(new_pipe_data)
-        #
-        #     # Broadcast the new pipe data to clients
-        #     pipe_message = {
-        #         "type": "pipe_spawn",
-        #         "id": multiplayer.player_id,
-        #         "pipes": new_pipe_data
-        #     }
-        #     if multiplayer.udp_sock:
-        #         multiplayer.udp_sock.sendto(
-        #             json.dumps(pipe_message).encode(),
-        #             (multiplayer.host_ip, PORT)
-        #         )
+        # Host still manages pipe spawning on timer
+        if event.type == SPAWNPIPE and multiplayer.is_host and multiplayer.game_started:
+            new_pipes = create_pipe()
+            new_pipe_data = [(p.x, p.y, p.width, p.height) for p in new_pipes]
+            multiplayer.pipe_list.extend(new_pipe_data)
+
+            # Force a broadcast of the new pipe list with EVERY pipe spawn
+            pipe_message = {
+                "type": "pipe_spawn",
+                "id": multiplayer.player_id,
+                "pipes": multiplayer.pipe_list,  # Send FULL pipe list, not just new pipes
+                "timestamp": current_time
+            }
+            if multiplayer.udp_sock:
+                multiplayer.udp_sock.sendto(
+                    json.dumps(pipe_message).encode(),
+                    (multiplayer.host_ip, PORT)
+                )
 
     # Move background as usual
     move_background()
@@ -86,57 +90,50 @@ def play_multiplayer_logic(multiplayer):
         multiplayer.update_position(bird_rect.x, bird_rect.centery, score)
 
         # ------------------------
-        # HOST logic
+        # PIPE SYNCHRONIZATION LOGIC
         # ------------------------
-        if multiplayer.is_host:
-            # Convert pipe_list from network data to Rects
-            host_pipe_list = [
-                pygame.Rect(x, y, w, h)
-                for (x, y, w, h) in multiplayer.pipe_list
-            ]
-            # Host moves pipes every frame
-            host_pipe_list = move_pipes(host_pipe_list)
 
-            # Update the authoritative pipe_list
-            multiplayer.pipe_list = [
-                (p.x, p.y, p.width, p.height) for p in host_pipe_list
-            ]
+        # Convert pipe_list from network data to Rects
+        pipe_rects = [
+            pygame.Rect(x, y, w, h)
+            for (x, y, w, h) in multiplayer.pipe_list
+        ]
 
-            # Draw them
-            draw_pipes(host_pipe_list)
-            active_pipe_rects = host_pipe_list
+        # Move pipes at the SAME speed for both host and client
+        pipe_rects = [pipe.move(-PIPE_SPEED, 0) for pipe in pipe_rects]
 
-        # ------------------------
-        # CLIENT logic (the fix)
-        # ------------------------
-        else:
-            # Convert current pipe_list to Rects
-            client_pipe_list = [
-                pygame.Rect(x, y, w, h)
-                for (x, y, w, h) in multiplayer.pipe_list
-            ]
-            # >>> Smooth fix: move pipes client-side too! <<<
-            client_pipe_list = move_pipes(client_pipe_list)
+        # Update the multiplayer pipe_list with new positions
+        multiplayer.pipe_list = [
+            (p.x, p.y, p.width, p.height) for p in pipe_rects
+        ]
 
-            # Save them back to multiplayer so if a new packet arrives,
-            # we still reconcile eventually, but we always have locally moved them each frame.
-            multiplayer.pipe_list = [
-                (p.x, p.y, p.width, p.height) for p in client_pipe_list
-            ]
+        # Host - periodically broadcast full pipe list to clients
+        if multiplayer.is_host and (current_time - last_sync_time) > SYNC_INTERVAL:
+            pipe_message = {
+                "type": "pipe_sync",
+                "id": multiplayer.player_id,
+                "pipes": multiplayer.pipe_list,
+                "timestamp": current_time
+            }
+            if multiplayer.udp_sock:
+                multiplayer.udp_sock.sendto(
+                    json.dumps(pipe_message).encode(),
+                    (multiplayer.host_ip, PORT)
+                )
+            last_sync_time = current_time
 
-            # Draw them
-            draw_pipes(client_pipe_list)
-            active_pipe_rects = client_pipe_list
+        # Draw the pipes
+        draw_pipes(pipe_rects)
 
         # Collision check for local bird
-        if check_collision(active_pipe_rects) == False:
+        if check_collision(pipe_rects) == False:
             game_active = False
             game_state = 'game_over'
 
         # Draw other players
         for pid, data in multiplayer.players.items():
             # Skip our own ID
-            if pid != str(multiplayer.player_id) and "position" in data:
+            if pid != multiplayer.player_id and "position" in data:
                 x_pos, y_pos = data["position"]
                 color_idx = (int(pid) - 1) % len(PLAYER_COLORS)
                 pygame.draw.circle(
@@ -178,6 +175,13 @@ def play_multiplayer_logic(multiplayer):
                 mouse_pos = pygame.mouse.get_pos()
                 mouse_clicked = pygame.mouse.get_pressed()[0]
                 if start_button.collidepoint(mouse_pos) and mouse_clicked:
+                    # Pre-generate all pipes before starting
+                    if multiplayer.is_host and len(multiplayer.pipe_list) < 100:
+                        # Make sure we have plenty of pipes ready
+                        from Multiplayer import generate_initial_pipes
+                        multiplayer.pipe_list = generate_initial_pipes(
+                            pipe_count=50)
+
                     multiplayer.request_game_start()
 
             player_count = font.render(
