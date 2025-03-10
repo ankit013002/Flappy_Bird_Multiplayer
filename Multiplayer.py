@@ -226,7 +226,7 @@ def join_logic():
                         game_state = 'multiplayer menu'
 
     if multiplayer is not None and multiplayer.game_started:
-        game_state = 'play_multiplayer'
+        game_state = 'play_multiplayer'  # This line is critical!
 
     ip_input_box.update()
     join_screen()

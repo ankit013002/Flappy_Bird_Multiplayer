@@ -368,14 +368,14 @@ class Multiplayer:
                         self.players = message["players"]
                         self.game_started = message["game_started"]
 
+                    # In client_udp_loop() in Network.py
                     elif message["type"] == "game_start":
                         self.game_started = True
+                        print("[CLIENT] Game started signal received from host!")
                         # Reset pipe chunk counters to start requesting chunks
                         current_pipe_chunk = 0
                         total_pipe_chunks = (message.get(
                             "pipe_count", 0) + 19) // 20
-                        print(
-                            f"[CLIENT] Game started! Need to request {total_pipe_chunks} pipe chunks")
 
                     elif message["type"] == "pipe_chunk":
                         # Update the pipe chunk we're working with
